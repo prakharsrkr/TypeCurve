@@ -1,13 +1,62 @@
 # TypeCurve
 
-Oil & gas production forecasting system that uses machine learning to predict **Estimated Ultimate Recovery (EUR)** for wells across multiple geological basins and formations. The project builds type curves — standardized production profiles — using neural networks and ensemble ML models trained on well completion parameters, production data, and spatial/neighbor-well features.
+A machine learning system for predicting how much oil, gas, and water a well will produce over its lifetime.
 
-**Domain**: Petroleum engineering / reservoir analysis
+## What This Project Does
 
-**Primary prediction targets**:
-- `EUR_30yr_Actual_Oil_P50_MBO` — 30-year estimated oil recovery
-- `EUR_30yr_Actual_Gas_P50_MMCF` — 30-year estimated gas recovery
-- `EUR_30yr_Actual_Water_P50_MBBL` — 30-year estimated water recovery
+In the oil & gas industry, companies need to estimate a well's **Estimated Ultimate Recovery (EUR)** — the total volume of hydrocarbons a well is expected to produce over ~30 years. These estimates drive investment decisions worth millions of dollars per well.
+
+Traditionally, petroleum engineers build **type curves** — standardized production decline profiles for a given geological area — by hand using decline curve analysis. This project automates and improves that process using machine learning.
+
+Given a well's completion parameters (how it was drilled and fractured), its location, and data from nearby wells, the system predicts:
+
+| Target | Description | Unit |
+|--------|-------------|------|
+| **EUR Oil P50** | Expected 30-year oil recovery (median estimate) | Thousand barrels (MBO) |
+| **EUR Gas P50** | Expected 30-year gas recovery (median estimate) | Million cubic feet (MMCF) |
+| **EUR Water P50** | Expected 30-year water production (median estimate) | Thousand barrels (MBBL) |
+
+The "P50" means a 50th-percentile (median) estimate. The system also works with other percentiles (P20, P35, P65, P80) to capture uncertainty ranges.
+
+## How It Works
+
+### 1. Data
+
+The dataset contains ~15,500 wells with features including:
+
+- **Well identifiers**: UWI (Unique Well Identifier — a 14-digit API number) and basin/formation grouping
+- **Completion data**: How the well was drilled — lateral length, fluid pumped per foot, proppant (sand) per foot, etc.
+- **Decline curve parameters**: Mathematical parameters describing how production decreases over time (initial production rate, decline coefficients, buildup rate)
+- **Location**: Heel and toe point coordinates (lat/lon) of each horizontal well
+- **Neighbor well performance**: Production data from the 6 nearest wells in the azimuth zone and 2 nearest in the spacing zone — because nearby wells strongly influence each other's performance
+
+### 2. Preprocessing Pipeline
+
+Raw well data goes through an 11-step cleaning pipeline in `Main.ipynb`:
+
+1. Load data from Excel files
+2. Parse decline curve parameter strings into individual numeric columns
+3. Impute missing values
+4. Drop rows missing critical parameters
+5. Group wells by their type curve area (basin + formation)
+6. Remove wells with zero production in key columns
+7. Convert any negative values to absolute values
+8. Fill in missing water production parameters
+9. Replace zero EUR values with P50 estimates from the well's type curve group
+10. Compute aggregate features from neighbor wells (how are nearby wells performing?)
+11. Drop identifier columns that shouldn't be used as model features
+
+### 3. Models
+
+Models are trained **separately for each basin-formation combination** — because the geology varies dramatically between areas, a single global model would perform poorly.
+
+**Primary model — Neural Network:**
+A Keras neural network with a mixed-input architecture. Numerical features pass through 1D convolutional layers (which capture patterns across feature groups), while categorical features (basin, formation) go through embedding layers. These paths merge into dense layers with dropout and regularization to prevent overfitting.
+
+**Comparison models:**
+The neural network is benchmarked against traditional ML approaches — XGBoost (with hyperparameter tuning), Random Forest, Gradient Boosting, AdaBoost, ElasticNet, SVR, and others — all using scikit-learn-compatible interfaces.
+
+**Evaluation:** R2 score, RMSE, and MAE measure prediction accuracy. SHAP values provide interpretability — showing which features matter most for each prediction.
 
 ## Getting Started
 
@@ -23,86 +72,41 @@ Python 3.x with the following libraries:
 | Interactive | ipywidgets, IPython.display |
 | Utilities | joblib, tqdm, PIL |
 
-### Running the Project
+> **Note**: There is no `requirements.txt` yet — dependencies must be installed manually.
+
+### Running
 
 1. Install all dependencies listed above.
-2. Place well data Excel files (`Prakhar_Testnew2.xlsx`, etc.) in the repository root.
-3. Open `Main.ipynb` to run the preprocessing pipeline.
-4. Open the desired model notebook (e.g., `Refined_TypeCurve_Update-NeuralNetworkandOthers.ipynb`) to train and evaluate models.
+2. Ensure the well data Excel files (`Prakhar_Testnew2.xlsx`, etc.) are in the repository root.
+3. Open and run `Main.ipynb` — this executes the full preprocessing pipeline and produces a clean DataFrame ready for modeling.
+4. Open a model notebook to train and evaluate. Start with `Refined_TypeCurve_Update-NeuralNetworkandOthers.ipynb` for the cleaned-up version.
 
-> **Note**: Some notebooks reference Windows file paths. Update these to your local paths as needed.
+> **Note**: Some notebooks contain hardcoded Windows file paths (e.g., `C:\Users\...`). Update these to your local paths before running.
 
 ## Repository Structure
 
 ```
 TypeCurve/
-├── Main.ipynb                          # Entry point: imports, data loading, preprocessing pipeline
-├── Refined_TypeCurve_Update-*.ipynb    # Cleaned-up model notebook
-├── FirstTest_TypeCurve_Update-*.ipynb  # Experimental notebooks (multiple variants)
-├── Untitled.ipynb                      # Scratch/exploratory notebook
-├── Prakhar_Testnew2.xlsx               # Primary dataset (~15,500 wells)
+├── Main.ipynb                          # Start here — data loading & preprocessing
+├── Refined_TypeCurve_Update-*.ipynb    # Clean model notebook (neural network + ensembles)
+├── FirstTest_TypeCurve_Update-*.ipynb  # Experimental variants (see naming conventions below)
+├── Untitled.ipynb                      # Scratch/exploratory work
+├── Prakhar_Testnew2.xlsx               # Primary well dataset (~15,500 wells)
 ├── Prakhar_Testnew3.xlsx               # Secondary dataset
 └── Prakhar_Testnew4.xlsx               # Tertiary dataset
 ```
 
-### Notebook Naming Conventions
+The experimental notebooks use suffixes to indicate what's different about each variant:
 
-| Suffix | Meaning |
-|--------|---------|
-| `-Copy1`, `-Copy2` | Iterative experiment snapshots |
-| `-NoCategorical` | Excludes categorical feature encoding |
-| `-withPCA` | Uses PCA dimensionality reduction |
-| `-PhaseSeparate` | Separate oil/gas phase modeling |
-| `-withEURGrouping` | Groups wells by EUR buckets |
-| `-WithCorrections` | Bug-fixed versions of earlier experiments |
-| `-withHL` | Hidden layer modifications |
-| `-withMLUpdates` | Updated ML pipeline |
+| Suffix | What's different |
+|--------|------------------|
+| `-NoCategorical` | Drops categorical features — tests if basin/formation encoding helps |
+| `-withPCA` | Applies PCA to reduce feature dimensions before training |
+| `-PhaseSeparate` | Trains separate models for oil vs. gas phases |
+| `-withEURGrouping` | Buckets wells by EUR range before training |
+| `-WithCorrections` | Bug fixes applied to an earlier version |
+| `-withHL` | Experiments with different hidden layer sizes |
+| `-withMLUpdates` | Updated ML pipeline (newer preprocessing or model configs) |
+| `-Copy1`, `-Copy2` | Snapshot copies of experiments at different stages |
 
-## Data Pipeline
-
-The preprocessing pipeline in `Main.ipynb` runs the following steps:
-
-1. **Load & preprocess** — Load Excel data, initial cleaning
-2. **Split parameters** — Parse decline curve parameter strings into columns
-3. **Handle missing values** — Imputation strategies
-4. **Drop NA columns** — Remove rows with missing key parameters
-5. **Group & summarize** — Aggregate by type curve group
-6. **Drop zero rows** — Remove wells with zero values in critical columns
-7. **Convert to absolute values** — Ensure positive numeric values
-8. **Replace missing water params** — Handle missing water production parameters
-9. **Replace zeros with P50** — Fill zero EUR values with P50 estimates
-10. **Add neighbor EUR features** — Compute neighbor-well aggregate features
-11. **Drop specified columns** — Remove identifier/redundant columns before modeling
-
-## Models
-
-### Neural Network (Primary)
-
-- Keras Functional API with mixed input architecture
-- Numerical features processed through Conv1D layers (32 → 64 → 128 filters)
-- Categorical features through embedding layers
-- Dense layers [256, 128, 64, 32] with dropout and L1/L2 regularization
-- Adam optimizer, MSE loss, with EarlyStopping and ReduceLROnPlateau
-
-### Ensemble / Traditional Models
-
-- XGBoost (with hyperparameter tuning)
-- Random Forest, Gradient Boosting, AdaBoost
-- ElasticNet, SVR, Linear Regression, Decision Tree
-
-### Training Strategy
-
-- Models are trained **per basin-formation combination** (not a single global model)
-- Feature scaling via StandardScaler or RobustScaler
-- Categorical encoding via LabelEncoder or OneHotEncoder
-- Evaluation metrics: R2 score, RMSE, MAE
-- SHAP values for model interpretability
-
-## Key Concepts
-
-- **UWI** — Unique Well Identifier (14-digit API number)
-- **Typecurve / BasinTC** — Basin-formation grouping (e.g., "CoyoteValley_North")
-- **EUR** — Estimated Ultimate Recovery at percentiles P20/P35/P50/P65/P80
-- **Decline curve parameters** — BuildupRate, MonthsInProd, InitialProd, DiCoefficient, BCoefficient, LimDeclineRate
-- **Completion features** — FluidPerFoot, ProppantPerFoot, LateralLength, etc.
-- **Neighbor well features** — NNAZ (nearest neighbors azimuth zone), NNSZ (nearest neighbors spacing zone)
+> **Note**: `Main.ipynb` imports from `Preprocessing.py` and `Map_Plotting.py`, but these files are not in the repo — the functions they reference are defined inline within the notebooks.
