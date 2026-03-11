@@ -1,5 +1,6 @@
 import os
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.linear_model import LinearRegression
@@ -7,6 +8,111 @@ from sklearn.preprocessing import LabelEncoder
 from matplotlib.backends.backend_pdf import PdfPages
 
 from .decline_curve import modified_hyperbolic
+
+
+def plot_wells_map(df, output_path='wells_map.html', label_column=None,
+                   color_column=None, zoom_start=10):
+    """Plot wells on an interactive folium map with lateral lines.
+
+    Works with any of the project datasets. Requires at minimum HEELPOINT_LAT
+    and HEELPOINT_LON columns. MIDPOINT and TOEPOINT coordinates are used when
+    available to draw lateral lines; otherwise wells are shown as point markers.
+
+    Args:
+        df: DataFrame with well coordinate columns.
+        output_path: File path for the saved HTML map.
+        label_column: Column to use for marker popups. Auto-detected from
+            WellName, UWI, or Unique_PDP_ID if not provided.
+        color_column: Optional column for color-coding wells (e.g. 'BasinTC').
+        zoom_start: Initial zoom level for the map.
+
+    Returns:
+        The folium Map object (also saved to output_path).
+    """
+    import folium
+    from folium.plugins import Draw
+
+    # Validate required columns
+    required = ['HEELPOINT_LAT', 'HEELPOINT_LON']
+    missing = [c for c in required if c not in df.columns]
+    if missing:
+        raise ValueError(f"DataFrame missing required columns: {missing}")
+
+    # Determine which coordinate sets are available
+    has_midpoint = {'MIDPOINT_LAT', 'MIDPOINT_LON'}.issubset(df.columns)
+    has_toepoint = {'TOEPOINT_LAT', 'TOEPOINT_LON'}.issubset(df.columns)
+
+    # Drop rows missing heel coordinates
+    plot_df = df.dropna(subset=['HEELPOINT_LAT', 'HEELPOINT_LON']).copy()
+    if has_midpoint:
+        plot_df = plot_df.dropna(subset=['MIDPOINT_LAT', 'MIDPOINT_LON'])
+    if has_toepoint:
+        plot_df = plot_df.dropna(subset=['TOEPOINT_LAT', 'TOEPOINT_LON'])
+
+    if len(plot_df) == 0:
+        raise ValueError("No wells with valid coordinates after dropping NaN rows.")
+
+    # Auto-detect label column
+    if label_column is None:
+        for candidate in ['WellName', 'UWI', 'Unique_PDP_ID', 'UWI10', 'LeaseName']:
+            if candidate in plot_df.columns:
+                label_column = candidate
+                break
+
+    # Build color map if color_column provided
+    color_map = None
+    if color_column and color_column in plot_df.columns:
+        palette = ['blue', 'red', 'green', 'purple', 'orange', 'darkred',
+                    'darkblue', 'darkgreen', 'cadetblue', 'pink']
+        unique_vals = plot_df[color_column].dropna().unique()
+        color_map = {val: palette[i % len(palette)] for i, val in enumerate(unique_vals)}
+
+    # Calculate map center and bounds
+    min_lat = plot_df['HEELPOINT_LAT'].min()
+    max_lat = plot_df['HEELPOINT_LAT'].max()
+    min_lon = plot_df['HEELPOINT_LON'].min()
+    max_lon = plot_df['HEELPOINT_LON'].max()
+    center = [(min_lat + max_lat) / 2, (min_lon + max_lon) / 2]
+
+    m = folium.Map(location=center, zoom_start=zoom_start)
+    m.fit_bounds([[min_lat, min_lon], [max_lat, max_lon]])
+
+    for _, row in plot_df.iterrows():
+        color = 'blue'
+        if color_map and color_column and pd.notna(row.get(color_column)):
+            color = color_map.get(row[color_column], 'blue')
+
+        popup_text = ''
+        if label_column and pd.notna(row.get(label_column)):
+            popup_text = f'{label_column}: {row[label_column]}'
+
+        # Build line points from available coordinates
+        points = [(row['HEELPOINT_LAT'], row['HEELPOINT_LON'])]
+        if has_midpoint:
+            points.append((row['MIDPOINT_LAT'], row['MIDPOINT_LON']))
+        if has_toepoint:
+            points.append((row['TOEPOINT_LAT'], row['TOEPOINT_LON']))
+
+        if len(points) > 1:
+            folium.PolyLine(points, color=color, weight=2.5).add_to(m)
+            # Place marker at midpoint if available, otherwise heel
+            marker_idx = 1 if has_midpoint else 0
+            folium.Marker(
+                location=points[marker_idx],
+                popup=popup_text,
+                tooltip='Click for info',
+            ).add_to(m)
+        else:
+            folium.Marker(
+                location=points[0],
+                popup=popup_text,
+                tooltip='Click for info',
+            ).add_to(m)
+
+    draw = Draw(export=True)
+    m.add_child(draw)
+    m.save(output_path)
+    return m
 
 
 def plot_model_performance(history, title):
