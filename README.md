@@ -28,7 +28,7 @@ The dataset contains ~15,500 wells with features including:
 - **Completion data**: How the well was drilled — lateral length, fluid pumped per foot, proppant (sand) per foot, etc.
 - **Decline curve parameters**: Mathematical parameters describing how production decreases over time (initial production rate, decline coefficients, buildup rate)
 - **Location**: Heel and toe point coordinates (lat/lon) of each horizontal well
-- **Neighbor well performance**: Production data from the 6 nearest wells in the azimuth zone and 2 nearest in the spacing zone — because nearby wells strongly influence each other's performance
+- **Neighbor well performance**: Since unconventional plays typically have multibench targets (multiple stacked formations being developed simultaneously), neighbor well interactions matter in two ways. **All-zone neighbors (NNAZ)**: the 6 nearest wells across all zones/benches — capturing interference and depletion effects from wells in any formation layer. **Same-zone neighbors (NNSZ)**: the 2 nearest wells within the same zone — capturing direct competition for the same reservoir rock
 
 ### 2. Preprocessing Pipeline
 
