@@ -204,7 +204,14 @@ def encode_categorical_columns(df, categorical_columns):
 
 def remove_outliers(df, numerical_columns, threshold=3):
     """Remove rows with z-score > threshold in any numerical column."""
-    z_scores = np.abs(stats.zscore(df[numerical_columns]))
+    if df is None or len(df) == 0:
+        return df, 0
+
+    valid_cols = [col for col in numerical_columns if col in df.columns]
+    if not valid_cols:
+        return df, 0
+
+    z_scores = np.abs(stats.zscore(df[valid_cols]))
     filter_mask = (z_scores < threshold).all(axis=1)
     filtered_df = df[filter_mask]
     rows_removed = len(df) - len(filtered_df)

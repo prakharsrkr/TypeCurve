@@ -118,16 +118,27 @@ def calculate_covariance(combo_test, EUR_values, feature):
         'NNAZ_1_EUR_30yr_Actual_Oil_P50_MBO', 'NNAZ_1_EUR_30yr_Actual_Gas_P50_MMCF',
         'NNAZ_1_Cumulative oil mbo', 'NNAZ_1_Cumulative gas mmcf',
         'NNAZ_1_Cumulative water mbbl',
+        'NNAZ_2_EUR_30yr_Actual_Oil_P50_MBO', 'NNAZ_2_EUR_30yr_Actual_Gas_P50_MMCF',
+        'NNAZ_2_Cumulative oil mbo', 'NNAZ_2_Cumulative gas mmcf',
+        'NNAZ_2_Cumulative water mbbl',
         'NNSZ_1_EUR_30yr_Actual_Oil_P50_MBO', 'NNSZ_1_EUR_30yr_Actual_Gas_P50_MMCF',
         'NNSZ_1_Cumulative oil mbo', 'NNSZ_1_Cumulative gas mmcf',
         'NNSZ_1_Cumulative water mbbl',
+        'NNSZ_2_EUR_30yr_Actual_Oil_P50_MBO', 'NNSZ_2_EUR_30yr_Actual_Gas_P50_MMCF',
+        'NNSZ_2_Cumulative oil mbo', 'NNSZ_2_Cumulative gas mmcf',
+        'NNSZ_2_Cumulative water mbbl',
     ]
 
-    mask = ~np.isnan(feature_values.astype(float)) & ~np.isnan(EUR_values)
+    feature_values_float = feature_values.astype(float)
+    mask = ~np.isnan(feature_values_float) & ~np.isnan(EUR_values)
     if feature in zero_exclusion_cols:
-        mask &= (feature_values != 0) & (EUR_values != 0)
+        mask &= (feature_values_float != 0) & (EUR_values != 0)
 
-    filtered_features = feature_values[mask].astype(float)
+    # Exclude placeholder 5280 values for HZDIST columns
+    if feature.endswith('_HZDIST'):
+        mask &= (feature_values_float != 5280)
+
+    filtered_features = feature_values_float[mask]
     filtered_EUR = EUR_values[mask]
 
     if len(filtered_features) > 1:
