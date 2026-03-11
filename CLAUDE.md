@@ -45,7 +45,7 @@ TypeCurve/
 - **Decline curve params**: BuildupRate, MonthsInProd, InitialProd, DiCoefficient, BCoefficient, LimDeclineRate
 - **Completion features**: FluidPerFoot_bblft, ProppantPerFoot, LateralLength, etc.
 - **Spatial features**: HEELPOINT_LAT, HEELPOINT_LON, TOEPOINT_LAT, TOEPOINT_LON
-- **Neighbor well features**: NNAZ_1-6 (nearest neighbors in azimuth zone), NNSZ_1-2 (nearest neighbors in spacing zone) with their EUR/cumulative production values
+- **Neighbor well features**: NNAZ_1-6 (nearest neighbors in all zones — across all formation benches in multibench targets), NNSZ_1-2 (nearest neighbors in the same zone) with their EUR/cumulative production values
 
 ### Data Pipeline (Main.ipynb)
 
