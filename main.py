@@ -5,10 +5,13 @@ Main entry point that orchestrates the full pipeline.
 """
 
 import warnings
+import logging
 import pickle
 import os
 
 import numpy as np
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 from typecurve import config
 from typecurve.data_loading import load_data, create_derived_columns
@@ -29,6 +32,7 @@ from typecurve.testing import (
     load_test_data, prepare_testing_data, generate_baseline_predictions,
     run_type_curve_scaling, generate_scaled_production_rates, plot_type_curves,
 )
+from typecurve.shap_analysis import compute_and_log_shap_values, plot_shap_values
 
 # Suppress noisy warnings
 warnings.filterwarnings(action='ignore', category=UserWarning, message='.*deprecated.*')
@@ -121,7 +125,19 @@ def main():
             y_headers, output_scaler, log_transform_columns, time_array,
             config.OUTPUT_PDF_PATH))
 
-    # ── 9. Save Outputs ─────────────────────────────────────────────────────
+    # ── 9. SHAP Analysis ────────────────────────────────────────────────────
+    print("\nComputing SHAP values...")
+    shap_values_dict = compute_and_log_shap_values(
+        models, test_df, numerical_columns, categorical_columns,
+        shap_sample_size=config.SHAP_SAMPLE_SIZE)
+
+    feature_names = numerical_columns + categorical_columns
+    if shap_values_dict:
+        plot_shap_values(shap_values_dict, y_headers, feature_names, config.SHAP_PDF_PATH)
+    else:
+        print("No SHAP values computed (check logs for errors).")
+
+    # ── 10. Save Outputs ────────────────────────────────────────────────────
     print("\nSaving outputs...")
     os.makedirs(os.path.dirname(config.PICKLE_OUTPUT_PATH), exist_ok=True)
     outputs = {
@@ -138,12 +154,13 @@ def main():
         'y_headers': y_headers,
         'numerical_columns': numerical_columns,
         'categorical_columns': categorical_columns,
+        'shap_values_dict': shap_values_dict,
     }
     with open(config.PICKLE_OUTPUT_PATH, 'wb') as f:
         pickle.dump(outputs, f)
     print(f"Outputs saved to {config.PICKLE_OUTPUT_PATH}")
 
-    # ── 10. Type Curve Scaling (optional) ───────────────────────────────────
+    # ── 11. Type Curve Scaling (optional) ───────────────────────────────────
     if os.path.exists(config.TEST_FILE_PATH):
         print("\nRunning type curve scaling...")
         dtype_dict = {col: str for col in config.UWI_COLUMNS}

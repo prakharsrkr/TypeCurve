@@ -12,6 +12,8 @@ OUTPUT_DIR_TRAINING = os.path.join(BASE_DIR, 'output', 'FeaturevsPrediction_Trai
 OUTPUT_DIR_TEST = os.path.join(BASE_DIR, 'output', 'FeaturevsPrediction_Test')
 OUTPUT_PDF_PATH = os.path.join(BASE_DIR, 'output', 'model_performance_predtuning.pdf')
 PICKLE_OUTPUT_PATH = os.path.join(BASE_DIR, 'output', 'outputs_NN_only.pkl')
+SHAP_PDF_PATH = os.path.join(BASE_DIR, 'output', 'shap_summary_plot.pdf')
+SHAP_SAMPLE_SIZE = 100
 
 # ── UWI Columns ─────────────────────────────────────────────────────────────
 UWI_COLUMNS = [
