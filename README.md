@@ -28,7 +28,7 @@ The dataset contains ~15,500 wells with features including:
 - **Completion data**: How the well was drilled — lateral length, fluid pumped per foot, proppant (sand) per foot, etc.
 - **Decline curve parameters**: Mathematical parameters describing how production decreases over time (initial production rate, decline coefficients, buildup rate)
 - **Location**: Heel and toe point coordinates (lat/lon) of each horizontal well
-- **Neighbor well performance**: Production data from the 6 nearest wells in the azimuth zone and 2 nearest in the spacing zone — because nearby wells strongly influence each other's performance
+- **Neighbor well performance**: Production data from the 6 nearest wells in the across all zones and 2 nearest in the same zone — because nearby wells strongly influence each other's performance
 
 ### 2. Preprocessing Pipeline
 
