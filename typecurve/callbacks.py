@@ -115,7 +115,7 @@ def validate_productions_xgb(predictions, combo_val, y_headers):
         MBU = 0
         Dlim = 7
 
-        if any(x <= 0 for x in [qi, di, b, IBU, MBU, Dlim]):
+        if any(x <= 0 for x in [qi, di, b]):
             return False
 
         production = modified_hyperbolic(np.arange(1, 121), qi, di, b, Dlim, IBU, MBU)[0]

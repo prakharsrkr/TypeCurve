@@ -10,7 +10,8 @@ import pickle
 import os
 
 import matplotlib
-matplotlib.use('Agg')  # Non-interactive backend: plots won't block execution
+import matplotlib.pyplot as plt
+plt.ion()  # Interactive mode: figures display without blocking execution
 
 import numpy as np
 
