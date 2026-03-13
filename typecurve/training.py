@@ -1,3 +1,5 @@
+import os
+import tempfile
 import time
 
 import numpy as np
@@ -34,29 +36,39 @@ def train_and_evaluate_model(combo_train, combo_val, combo_test,
             combo_train, numerical_columns, categorical_columns,
             y_headers, output_scaler)
 
-        history = model.fit(
-            x=([combo_train[numerical_columns].values] +
-               [combo_train[col].astype(int).values.reshape(-1, 1)
-                for col in categorical_columns]),
-            y=combo_train[y_headers].values,
-            validation_data=(
-                [combo_val[numerical_columns].values] +
-                [combo_val[col].astype(int).values.reshape(-1, 1)
-                 for col in categorical_columns],
-                combo_val[y_headers].values
-            ),
-            epochs=TOTAL_EPOCHS,
-            batch_size=BATCH_SIZE,
-            callbacks=[
-                EarlyStopping(monitor='val_loss', patience=10, min_delta=1e-3,
-                              restore_best_weights=True),
-                ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=5,
-                                  min_lr=1e-6, verbose=1),
-                ModelCheckpoint('best_model.keras', monitor='val_loss',
-                                save_best_only=True, mode='min', verbose=1),
-            ],
-            verbose=0
-        )
+        # Use a unique temp file for ModelCheckpoint to avoid PermissionError
+        # when multiple training runs target the same hardcoded path.
+        checkpoint_fd, checkpoint_path = tempfile.mkstemp(suffix='.keras')
+        os.close(checkpoint_fd)
+
+        try:
+            history = model.fit(
+                x=([combo_train[numerical_columns].values] +
+                   [combo_train[col].astype(int).values.reshape(-1, 1)
+                    for col in categorical_columns]),
+                y=combo_train[y_headers].values,
+                validation_data=(
+                    [combo_val[numerical_columns].values] +
+                    [combo_val[col].astype(int).values.reshape(-1, 1)
+                     for col in categorical_columns],
+                    combo_val[y_headers].values
+                ),
+                epochs=TOTAL_EPOCHS,
+                batch_size=BATCH_SIZE,
+                callbacks=[
+                    EarlyStopping(monitor='val_loss', patience=10, min_delta=1e-3,
+                                  restore_best_weights=True),
+                    ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=5,
+                                      min_lr=1e-6, verbose=1),
+                    ModelCheckpoint(checkpoint_path, monitor='val_loss',
+                                    save_best_only=True, mode='min', verbose=1),
+                ],
+                verbose=0
+            )
+        finally:
+            # Clean up the temp checkpoint file
+            if os.path.exists(checkpoint_path):
+                os.remove(checkpoint_path)
 
         # Plot training history
         plt.figure(figsize=(10, 6))
