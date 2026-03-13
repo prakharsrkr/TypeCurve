@@ -3,17 +3,25 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn.metrics import mean_squared_error, mean_absolute_error
-from tensorflow.keras.models import Model
 from fpdf import FPDF
 
 from .decline_curve import modified_hyperbolic, validate_inputs
 from .data_preparation import denormalize_data_output, filter_by_basin_and_formation
 
 
+def _is_keras_model(model):
+    """Check if *model* is a Keras Model without importing TensorFlow eagerly."""
+    try:
+        from tensorflow.keras.models import Model
+        return isinstance(model, Model)
+    except ImportError:
+        return False
+
+
 def predict_with_model(model, numerical_data, categorical_data,
                        numerical_columns=None, categorical_columns=None):
     """Predict with either a Keras model or sklearn pipeline."""
-    if isinstance(model, Model):
+    if _is_keras_model(model):
         return model.predict([numerical_data] + categorical_data)
     else:
         data_combined = np.hstack([numerical_data] + categorical_data)
