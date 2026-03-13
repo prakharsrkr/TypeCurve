@@ -91,9 +91,12 @@ def train_and_evaluate_model(combo_train, combo_val, combo_test,
         if model_type == 'xgboost':
             preprocessor = model.named_steps['preprocessor']
             xgb_model = model.named_steps['model']
-            trained_model = custom_xgboost_training(
+            custom_xgboost_training(
                 xgb_model, preprocessor, combo_train, combo_val,
                 numerical_columns, categorical_columns, y_headers)
+            # Return the full pipeline (preprocessor + trained model) so
+            # evaluation and SHAP can use model.named_steps as expected.
+            trained_model = model
         else:
             model.fit(combo_train_val[numerical_columns + categorical_columns],
                       combo_train_val[y_headers].values)

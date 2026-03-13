@@ -9,6 +9,10 @@ import logging
 import pickle
 import os
 
+import matplotlib
+import matplotlib.pyplot as plt
+plt.ion()  # Interactive mode: figures display without blocking execution
+
 import numpy as np
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')

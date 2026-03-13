@@ -93,7 +93,6 @@ def custom_xgboost_training(model, preprocessor, combo_train, combo_val,
 
     model.fit(combo_train_transformed, combo_train[y_headers].values,
               eval_set=[(combo_val_transformed, combo_val[y_headers].values)],
-              early_stopping_rounds=10,
               verbose=True)
 
     for round_num in range(10, model.get_booster().best_iteration + 1, 10):
@@ -116,7 +115,7 @@ def validate_productions_xgb(predictions, combo_val, y_headers):
         MBU = 0
         Dlim = 7
 
-        if any(x <= 0 for x in [qi, di, b, IBU, MBU, Dlim]):
+        if any(x <= 0 for x in [qi, di, b]):
             return False
 
         production = modified_hyperbolic(np.arange(1, 121), qi, di, b, Dlim, IBU, MBU)[0]
