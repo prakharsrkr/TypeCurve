@@ -5,9 +5,6 @@ import time
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import tensorflow as tf
-from tensorflow.keras.optimizers import Adam
-from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau, ModelCheckpoint
 from tqdm import tqdm
 
 from .models import build_model
@@ -23,6 +20,10 @@ def train_and_evaluate_model(combo_train, combo_val, combo_test,
     print(f"Starting {model_type} training")
 
     if model_type in ['neural_network', 'cnn', 'transformer', 'resnet']:
+        import tensorflow as tf
+        from tensorflow.keras.optimizers import Adam
+        from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau, ModelCheckpoint
+
         model = build_model(numerical_columns, categorical_columns, df,
                             output_size, model_type=model_type)
 
