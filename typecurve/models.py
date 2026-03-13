@@ -161,7 +161,8 @@ def _build_sklearn_pipeline(model_type, numerical_columns, categorical_columns):
     elif model_type == 'xgboost':
         model = XGBRegressor(
             tree_method='hist', n_estimators=300, max_depth=10,
-            learning_rate=0.01, subsample=0.9, colsample_bytree=0.9)
+            learning_rate=0.01, subsample=0.9, colsample_bytree=0.9,
+            early_stopping_rounds=10)
     elif model_type in ('ridge', 'lasso', 'multioutput'):
         model = MultiOutputRegressor(Lasso(alpha=0.1, max_iter=10000))
     else:

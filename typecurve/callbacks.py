@@ -93,7 +93,6 @@ def custom_xgboost_training(model, preprocessor, combo_train, combo_val,
 
     model.fit(combo_train_transformed, combo_train[y_headers].values,
               eval_set=[(combo_val_transformed, combo_val[y_headers].values)],
-              early_stopping_rounds=10,
               verbose=True)
 
     for round_num in range(10, model.get_booster().best_iteration + 1, 10):

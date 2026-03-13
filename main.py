@@ -9,6 +9,9 @@ import logging
 import pickle
 import os
 
+import matplotlib
+matplotlib.use('Agg')  # Non-interactive backend: plots won't block execution
+
 import numpy as np
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
