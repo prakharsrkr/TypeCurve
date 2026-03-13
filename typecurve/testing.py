@@ -120,6 +120,15 @@ def run_type_curve_scaling(models, Testing, variations, vary_column,
                 varied_df[numerical_columns] = input_scaler.transform(
                     varied_df[numerical_columns])
 
+                # Re-encode categorical columns back to integers after decode
+                for col in categorical_columns:
+                    le = encoders[col]
+                    # Use transform for known labels; unknown labels get code 0
+                    try:
+                        varied_df[col] = le.transform(varied_df[col].astype(str))
+                    except ValueError:
+                        varied_df[col] = 0
+
                 numerical_data = varied_df[numerical_columns].values
                 categorical_data = [varied_df[col].astype(int).values.reshape(-1, 1)
                                     for col in categorical_columns]

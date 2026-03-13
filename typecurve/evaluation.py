@@ -185,10 +185,13 @@ def save_plots_to_pdf(plot_data, performance_data, output_path):
                 metrics.get('sMAPE', 0), metrics)
             pdf.set_text_color(255, 0, 0)
             pdf.set_font("Arial", style='BU', size=12)
-            pdf.multi_cell(0, 10, f"Basin: {basin} | Formation: {formation} | {model_type}")
+            pdf.set_x(10)
+            page_w = pdf.w - pdf.l_margin - pdf.r_margin
+            pdf.multi_cell(page_w, 10, f"Basin: {basin} | Formation: {formation} | {model_type}")
             pdf.set_text_color(0, 0, 0)
             pdf.set_font("Arial", size=10)
-            pdf.multi_cell(0, 8, metrics_text)
+            pdf.set_x(10)
+            pdf.multi_cell(page_w, 8, metrics_text)
 
         min_len = min(len(time_arr), len(best_true), len(best_pred),
                       len(worst_true), len(worst_pred))
@@ -213,7 +216,9 @@ def save_plots_to_pdf(plot_data, performance_data, output_path):
             plt.savefig(plot_path)
             plt.close()
 
-            pdf.image(plot_path, x=10, y=pdf.get_y(), w=90)
+            y_pos = pdf.get_y()
+            pdf.image(plot_path, x=10, y=y_pos, w=90)
+            pdf.set_y(y_pos + 70)  # Move cursor below image
             os.remove(plot_path)
 
     pdf.output(output_path)
@@ -269,10 +274,17 @@ def run_evaluation_loop(models, test_df, numerical_columns, categorical_columns,
         if y_true_denorm.shape == y_pred_denorm.shape:
             mse = mean_squared_error(y_true_denorm, y_pred_denorm)
             mae = mean_absolute_error(y_true_denorm, y_pred_denorm)
-            smape = np.mean(np.abs(y_pred_denorm.values - y_true_denorm.values) /
-                            ((np.abs(y_true_denorm.values) + np.abs(y_pred_denorm.values)) / 2)) * 100
+            # Guard against division by zero in sMAPE
+            denom = (np.abs(y_true_denorm.values) + np.abs(y_pred_denorm.values)) / 2
+            denom = np.where(denom == 0, 1.0, denom)
+            smape = np.mean(np.abs(y_pred_denorm.values - y_true_denorm.values) / denom) * 100
             performance_data[(basin, formation, config_str)] = {
                 'MSE': mse, 'MAE': mae, 'sMAPE': smape, **scalar_errors}
+            evaluation_results[(basin, formation, config_str)] = {
+                'y_pred': y_pred_denorm, 'y_true': y_true_denorm,
+                'errors': errors, 'scalar_errors': scalar_errors,
+                'MSE': mse, 'MAE': mae, 'sMAPE': smape,
+            }
             print(f"{basin}-{formation} ({config_str}): MSE={mse:.4f}, MAE={mae:.4f}, sMAPE={smape:.2f}%")
 
             if ((basin, formation) not in best_performing_models or

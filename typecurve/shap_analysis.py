@@ -50,15 +50,23 @@ def compute_shap_values_ml(model, numerical_data, categorical_data):
     return shap_values
 
 
-def compute_shap_values_xgb(model, numerical_data, categorical_data):
+def compute_shap_values_xgb(model, numerical_data, categorical_data,
+                            numerical_columns=None, categorical_columns=None):
     """Compute SHAP values for XGBoost models with pipeline preprocessor."""
+    combined_data_transformed = None
     try:
         combined_data = np.concatenate([numerical_data] + categorical_data, axis=1)
         preprocessor = model.named_steps['preprocessor']
         xgb_model = model.named_steps['model']
 
         logging.info("Transforming data using the preprocessor.")
-        combined_data_transformed = preprocessor.transform(pd.DataFrame(combined_data))
+        # ColumnTransformer requires named columns that match what it was fitted on
+        col_names = (numerical_columns or []) + (categorical_columns or [])
+        if col_names and len(col_names) == combined_data.shape[1]:
+            input_df = pd.DataFrame(combined_data, columns=col_names)
+        else:
+            input_df = pd.DataFrame(combined_data)
+        combined_data_transformed = preprocessor.transform(input_df)
 
         logging.info("Creating TreeExplainer.")
         explainer = shap.TreeExplainer(xgb_model)
@@ -68,6 +76,9 @@ def compute_shap_values_xgb(model, numerical_data, categorical_data):
     except Exception as e:
         logging.error(f"Error using TreeExplainer: {e}. Falling back to KernelExplainer.")
         try:
+            if combined_data_transformed is None:
+                logging.error("Cannot fall back: preprocessor transform failed.")
+                return None
             explainer = shap.KernelExplainer(xgb_model.predict, combined_data_transformed)
             shap_values = explainer.shap_values(combined_data_transformed, nsamples=100)
         except Exception as e2:
@@ -78,12 +89,14 @@ def compute_shap_values_xgb(model, numerical_data, categorical_data):
 
 # ── Dispatcher ──────────────────────────────────────────────────────────────
 
-def compute_shap_values(model, numerical_data, categorical_data, model_type):
+def compute_shap_values(model, numerical_data, categorical_data, model_type,
+                        numerical_columns=None, categorical_columns=None):
     """Route SHAP computation to the correct method based on model_type."""
     if model_type == 'neural_network':
         return compute_shap_values_nn(model, numerical_data, categorical_data)
     elif model_type == 'xgboost':
-        return compute_shap_values_xgb(model, numerical_data, categorical_data)
+        return compute_shap_values_xgb(model, numerical_data, categorical_data,
+                                       numerical_columns, categorical_columns)
     else:
         return compute_shap_values_ml(model, numerical_data, categorical_data)
 
@@ -113,17 +126,18 @@ def compute_and_log_shap_values(models, test_df, numerical_columns, categorical_
             categorical_data = [combo_test_subset[col].astype(int).values.reshape(-1, 1)
                                 for col in categorical_columns]
 
-            # Determine model type from config_str
-            if 'embedding_output_dim' in config_str or config_str in ('neural_network', 'cnn', 'resnet', 'transformer'):
+            # Determine model type from config_str (which is the model_type key)
+            if config_str in ('neural_network', 'cnn', 'resnet', 'transformer'):
                 model_type = 'neural_network'
-            elif 'xgboost' in config_str.lower():
+            elif config_str == 'xgboost':
                 model_type = 'xgboost'
             else:
                 model_type = 'ml_model'
 
             logging.info(f"Computing SHAP values using {model_type}")
             shap_values = compute_shap_values(model, numerical_data, categorical_data,
-                                              model_type)
+                                              model_type, numerical_columns,
+                                              categorical_columns)
 
             if shap_values is not None:
                 shap_values_dict[(basin, formation, config_str)] = shap_values

@@ -1,7 +1,6 @@
 import os
 import tempfile
 import time
-import warnings
 
 import numpy as np
 import pandas as pd
@@ -11,14 +10,6 @@ from tqdm import tqdm
 from .models import build_model
 from .callbacks import PositivePredictionCallback, custom_xgboost_training
 from .config import TOTAL_EPOCHS, BATCH_SIZE
-
-# Check TensorFlow availability once at module level so callers can query it.
-_TF_AVAILABLE = False
-try:
-    import tensorflow as tf
-    _TF_AVAILABLE = True
-except ImportError:
-    tf = None
 
 _TF_MODEL_TYPES = frozenset(['neural_network', 'cnn', 'transformer', 'resnet'])
 
@@ -31,12 +22,10 @@ def train_and_evaluate_model(combo_train, combo_val, combo_test,
     print(f"Starting {model_type} training")
 
     if model_type in _TF_MODEL_TYPES:
-        if not _TF_AVAILABLE:
-            warnings.warn(
-                f"Skipping {model_type}: TensorFlow is not available. "
-                "Install a working TensorFlow build to enable neural-network models."
-            )
-            return None
+        # Import TensorFlow at point-of-use.  If it is missing or broken the
+        # ImportError propagates immediately — callers see a clear failure
+        # instead of silently receiving no model.
+        import tensorflow as tf
         from tensorflow.keras.optimizers import Adam
         from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau, ModelCheckpoint
 
@@ -147,7 +136,6 @@ def execute_training(specific_combinations, train_df, val_df, test_df,
                 combo_train, combo_val, combo_test,
                 numerical_columns, categorical_columns, y_headers,
                 output_size, ml_config['model_type'], df, task_times, output_scaler)
-            if model is not None:
-                all_models[(basin, formation, ml_config['model_type'])] = model
+            all_models[(basin, formation, ml_config['model_type'])] = model
 
     return all_models
