@@ -1,5 +1,4 @@
 import numpy as np
-import tensorflow as tf
 
 
 def validate_inputs(qi, di, b, Dlim, IBU, MBU):
@@ -199,17 +198,24 @@ def generate_production_rates_testing(y_pred_denormalized, headers, time,
 
 # ── TensorFlow Versions (for custom loss functions) ─────────────────────────
 
-@tf.function
+
+def _get_tf():
+    """Lazy-import TensorFlow so the module can be loaded without it."""
+    import tensorflow as tf
+    return tf
+
+
 def validate_inputs_tf(qi, di, b, Dlim, IBU, MBU):
+    tf = _get_tf()
     valid_ibu_mbu = tf.reduce_all(tf.greater_equal([IBU, MBU], 0))
     valid_params = tf.reduce_all(tf.greater([qi, di, b, Dlim], 0))
     return tf.logical_and(valid_ibu_mbu, valid_params)
 
 
-@tf.function
 def modified_hyperbolic_tf(time_array, qi, di, b, Dlim, IBU, MBU,
                            buildup_method='Linear', epsilon=1e-10):
     """TF version of modified_hyperbolic for use in custom loss functions."""
+    tf = _get_tf()
     if not validate_inputs_tf(qi, di, b, Dlim, IBU, MBU):
         return tf.zeros_like(time_array, dtype=tf.float32)
 
