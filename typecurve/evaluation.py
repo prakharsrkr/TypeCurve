@@ -1,5 +1,4 @@
 import os
-import tempfile
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -214,8 +213,8 @@ def save_plots_to_pdf(plot_data, performance_data, output_path):
             ax.grid(True, which='both', linestyle='--')
             plt.tight_layout()
 
-            fd, plot_path = tempfile.mkstemp(suffix='.png')
-            os.close(fd)
+            plot_path = os.path.join(
+                os.path.dirname(output_path), f"_temp_{label.lower()}_{i}.png")
             plt.savefig(plot_path)
             plt.close(fig)
 
