@@ -4,10 +4,16 @@ TypeCurve - Oil & Gas Production Forecasting System
 Main entry point that orchestrates the full pipeline.
 """
 
+import faulthandler
+import sys
 import warnings
 import logging
 import pickle
 import os
+
+# Enable faulthandler so native-level crashes (segfaults) print a traceback
+# instead of silently killing the process.
+faulthandler.enable()
 
 import matplotlib
 import matplotlib.pyplot as plt
