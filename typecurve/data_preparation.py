@@ -1,13 +1,21 @@
 import numpy as np
 import pandas as pd
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import MinMaxScaler
+from sklearn.model_selection import train_test_split, GroupShuffleSplit
+from sklearn.preprocessing import MinMaxScaler, RobustScaler
 
 from .config import TEST_SIZE, VAL_SPLIT, RANDOM_STATE
 
 
-def split_data(df, test_size=None, val_split=None, random_state=None):
-    """Split data into train, validation, and test sets."""
+def split_data(df, test_size=None, val_split=None, random_state=None,
+               group_columns=None):
+    """Split data into train, validation, and test sets.
+
+    When *group_columns* is provided (e.g. ``['BasinTC', 'FORMATION_CONDENSED']``),
+    uses ``GroupShuffleSplit`` so that every formation has proportional
+    representation in each split.  This prevents the random split from
+    concentrating a small formation entirely in one partition, which was a
+    major source of instability.
+    """
     if test_size is None:
         test_size = TEST_SIZE
     if val_split is None:
@@ -15,47 +23,77 @@ def split_data(df, test_size=None, val_split=None, random_state=None):
     if random_state is None:
         random_state = RANDOM_STATE
 
-    train_df, test_df = train_test_split(df, test_size=test_size, random_state=random_state)
-    val_df, test_df = train_test_split(test_df, test_size=val_split, random_state=random_state)
+    if group_columns is not None:
+        # Build a group key per row
+        groups = df[group_columns].astype(str).agg('_'.join, axis=1)
+
+        gss = GroupShuffleSplit(n_splits=1, test_size=test_size,
+                                random_state=random_state)
+        train_idx, test_idx = next(gss.split(df, groups=groups))
+        train_df = df.iloc[train_idx]
+        remaining = df.iloc[test_idx]
+
+        groups_rem = groups.iloc[test_idx]
+        gss2 = GroupShuffleSplit(n_splits=1, test_size=val_split,
+                                 random_state=random_state)
+        val_idx, test_idx2 = next(gss2.split(remaining, groups=groups_rem))
+        val_df = remaining.iloc[val_idx]
+        test_df = remaining.iloc[test_idx2]
+    else:
+        train_df, test_df = train_test_split(
+            df, test_size=test_size, random_state=random_state)
+        val_df, test_df = train_test_split(
+            test_df, test_size=val_split, random_state=random_state)
+
     return train_df, val_df, test_df
 
 
 def fit_and_apply_scalers(train_df, val_df, test_df, numerical_columns, y_headers,
-                          log_transform_columns=None):
-    """Fit MinMaxScalers on combined data and transform all splits.
+                          log_transform_columns=None, use_robust=False):
+    """Fit scalers on **training data only** and transform all splits.
+
+    Previous version fitted on ``concat([train, val, test])`` — this leaked
+    test-set statistics into the scaler, inflating apparent accuracy and
+    making feature scaling dependent on the random split.
+
+    Set *use_robust=True* to use ``RobustScaler`` (median/IQR-based),
+    which is less sensitive to outliers than ``MinMaxScaler``.
 
     Returns (train_df, val_df, test_df, input_scaler, output_scaler).
     """
     if log_transform_columns is None:
         log_transform_columns = []
 
-    input_scaler = MinMaxScaler()
-    output_scaler = MinMaxScaler()
+    ScalerCls = RobustScaler if use_robust else MinMaxScaler
+    input_scaler = ScalerCls()
+    output_scaler = ScalerCls()
 
-    combined_df = pd.concat([train_df, val_df, test_df], axis=0)
-
-    # Apply log transformation
+    # Apply log transformation (on each split independently)
     if log_transform_columns:
-        combined_df[log_transform_columns] = combined_df[log_transform_columns].apply(
-            lambda x: x.clip(lower=0))
-        combined_df[log_transform_columns] = np.log1p(combined_df[log_transform_columns])
+        for split_df in (train_df, val_df, test_df):
+            split_df[log_transform_columns] = split_df[log_transform_columns].clip(lower=0)
+            split_df[log_transform_columns] = np.log1p(split_df[log_transform_columns])
 
-        train_df[log_transform_columns] = np.log1p(train_df[log_transform_columns])
-        val_df[log_transform_columns] = np.log1p(val_df[log_transform_columns])
-        test_df[log_transform_columns] = np.log1p(test_df[log_transform_columns])
+    # Fit on training data ONLY — no leakage
+    input_scaler.fit(train_df[numerical_columns])
+    output_scaler.fit(train_df[y_headers])
 
-    input_scaler.fit(combined_df[numerical_columns])
-    output_scaler.fit(combined_df[y_headers])
+    # Transform all splits using training-fitted scaler
+    for split_df in (train_df, val_df, test_df):
+        split_df = split_df.copy()
 
-    combined_df[numerical_columns] = input_scaler.transform(combined_df[numerical_columns])
-    combined_df[y_headers] = output_scaler.transform(combined_df[y_headers])
+    train_df = train_df.copy()
+    val_df = val_df.copy()
+    test_df = test_df.copy()
 
-    # Split back
-    n_train = len(train_df)
-    n_val = len(val_df)
-    train_df = combined_df.iloc[:n_train]
-    val_df = combined_df.iloc[n_train:n_train + n_val]
-    test_df = combined_df.iloc[n_train + n_val:]
+    train_df[numerical_columns] = input_scaler.transform(train_df[numerical_columns])
+    train_df[y_headers] = output_scaler.transform(train_df[y_headers])
+
+    val_df[numerical_columns] = input_scaler.transform(val_df[numerical_columns])
+    val_df[y_headers] = output_scaler.transform(val_df[y_headers])
+
+    test_df[numerical_columns] = input_scaler.transform(test_df[numerical_columns])
+    test_df[y_headers] = output_scaler.transform(test_df[y_headers])
 
     return train_df, val_df, test_df, input_scaler, output_scaler
 

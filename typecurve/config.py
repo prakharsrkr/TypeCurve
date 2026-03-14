@@ -1,5 +1,34 @@
 import os
+import random
+
 import numpy as np
+
+# ── Reproducibility ────────────────────────────────────────────────────────
+# Call set_global_seeds() at the start of every pipeline run to ensure
+# deterministic behaviour across Python, NumPy, and TensorFlow.
+GLOBAL_SEED = 42
+
+
+def set_global_seeds(seed=None):
+    """Set random seeds for Python, NumPy, and TensorFlow for reproducibility.
+
+    Must be called **before** any model building or data splitting.
+    """
+    if seed is None:
+        seed = GLOBAL_SEED
+
+    os.environ['PYTHONHASHSEED'] = str(seed)
+    random.seed(seed)
+    np.random.seed(seed)
+
+    try:
+        import tensorflow as tf
+        tf.random.set_seed(seed)
+        # Optionally force deterministic ops (may reduce perf on GPU)
+        os.environ['TF_DETERMINISTIC_OPS'] = '1'
+    except ImportError:
+        pass
+
 
 # ── File Paths ──────────────────────────────────────────────────────────────
 # Update these to match your local environment

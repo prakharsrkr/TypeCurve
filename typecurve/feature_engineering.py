@@ -192,12 +192,23 @@ def identify_column_types(df):
     return categorical_columns, y_headers, numerical_columns, feature_columns
 
 
-def encode_categorical_columns(df, categorical_columns):
-    """Label-encode categorical columns. Returns (df, encoders_dict)."""
+def encode_categorical_columns(df, categorical_columns, fit_df=None):
+    """Label-encode categorical columns. Returns (df, encoders_dict).
+
+    When *fit_df* is provided the encoders are fitted on that subset only
+    (typically the training split) to avoid leaking test-set category
+    information.  Categories unseen during fit are mapped to code 0.
+    """
     encoders = {}
     for col in categorical_columns:
         le = LabelEncoder()
-        df[col] = le.fit_transform(df[col].astype(str))
+        source = fit_df if fit_df is not None else df
+        le.fit(source[col].astype(str))
+        # Handle unseen categories gracefully
+        known = set(le.classes_)
+        df[col] = df[col].astype(str).apply(
+            lambda x: x if x in known else le.classes_[0])
+        df[col] = le.transform(df[col])
         encoders[col] = le
     return df, encoders
 

@@ -51,6 +51,9 @@ warnings.filterwarnings(action='ignore', category=UserWarning, message='.*No vis
 
 
 def main():
+    # ── 0. Set Seeds for Reproducibility ───────────────────────────────────
+    config.set_global_seeds()
+
     # ── 1. Load Data ────────────────────────────────────────────────────────
     print("Loading data...")
     df = load_data(config.DEFAULT_FILE_PATH)
@@ -100,7 +103,8 @@ def main():
 
     # ── 6. Train/Val/Test Split & Scaling ───────────────────────────────────
     print("Splitting and scaling data...")
-    train_df, val_df, test_df = split_data(df)
+    train_df, val_df, test_df = split_data(
+        df, group_columns=['BasinTC', 'FORMATION_CONDENSED'])
     log_transform_columns = []
 
     train_df, val_df, test_df, input_scaler, output_scaler = fit_and_apply_scalers(

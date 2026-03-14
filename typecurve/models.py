@@ -2,7 +2,7 @@ import numpy as np
 import tensorflow as tf
 from sklearn.linear_model import Lasso
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import OneHotEncoder, PolynomialFeatures
+from sklearn.preprocessing import OneHotEncoder
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.multioutput import MultiOutputRegressor
@@ -184,30 +184,55 @@ def _build_transformer(numerical_columns, categorical_columns, df, output_size):
     return model
 
 
-def _build_sklearn_pipeline(model_type, numerical_columns, categorical_columns):
-    """Build a scikit-learn pipeline with polynomial features and a regressor."""
+def _build_sklearn_pipeline(model_type, numerical_columns, categorical_columns,
+                            monotonic_constraints=None):
+    """Build a scikit-learn pipeline with a regressor.
+
+    PolynomialFeatures(degree=2) was removed: with ~20+ numerical features it
+    creates ~200+ interaction terms, massively overparameterizing the model
+    relative to per-formation sample sizes (<100 wells) and scattering feature
+    importance across meaningless polynomial terms.
+
+    *monotonic_constraints* is an optional dict mapping feature names to
+    +1 (increasing) or -1 (decreasing) constraints.  Only supported for
+    XGBoost.  Example: ``{'ProppantPerFoot': 1, 'NNSZ_1_HZDIST': 1}``
+    means EUR should increase with proppant and with greater spacing.
+    """
     if model_type == 'random_forest':
         model = RandomForestRegressor(
-            n_jobs=-1, n_estimators=300, max_depth=15,
-            min_samples_split=5, min_samples_leaf=1, bootstrap=True)
+            n_jobs=-1, n_estimators=300, max_depth=10,
+            min_samples_split=10, min_samples_leaf=5, bootstrap=True,
+            random_state=42)
     elif model_type == 'decision_tree':
-        model = DecisionTreeRegressor(max_depth=20, min_samples_split=5, min_samples_leaf=2)
+        model = DecisionTreeRegressor(
+            max_depth=10, min_samples_split=10, min_samples_leaf=5,
+            random_state=42)
     elif model_type == 'xgboost':
-        model = XGBRegressor(
-            tree_method='hist', n_estimators=300, max_depth=10,
-            learning_rate=0.01, subsample=0.9, colsample_bytree=0.9,
-            early_stopping_rounds=10)
+        # Build monotonic constraint tuple if provided
+        mc_tuple = None
+        if monotonic_constraints and numerical_columns:
+            all_features = numerical_columns + categorical_columns
+            mc_list = [monotonic_constraints.get(f, 0) for f in all_features]
+            mc_tuple = tuple(mc_list)
+
+        xgb_kwargs = dict(
+            tree_method='hist', n_estimators=300, max_depth=6,
+            learning_rate=0.01, subsample=0.8, colsample_bytree=0.8,
+            min_child_weight=10, reg_alpha=0.1, reg_lambda=1.0,
+            early_stopping_rounds=10, random_state=42)
+        if mc_tuple is not None:
+            xgb_kwargs['monotone_constraints'] = mc_tuple
+        model = XGBRegressor(**xgb_kwargs)
     elif model_type in ('ridge', 'lasso', 'multioutput'):
         model = MultiOutputRegressor(Lasso(alpha=0.1, max_iter=10000))
     else:
         raise ValueError(f"Unknown model_type: {model_type}")
 
-    numerical_transformer = Pipeline(steps=[
-        ('poly', PolynomialFeatures(degree=2, include_bias=False))])
+    # Simple pass-through for numerical, one-hot for categorical (no polynomial)
     categorical_transformer = Pipeline(steps=[
         ('onehot', OneHotEncoder(handle_unknown='ignore'))])
     preprocessor = ColumnTransformer(transformers=[
-        ('num', numerical_transformer, numerical_columns),
+        ('num', 'passthrough', numerical_columns),
         ('cat', categorical_transformer, categorical_columns)])
     pipeline = Pipeline(steps=[('preprocessor', preprocessor), ('model', model)])
     return pipeline
