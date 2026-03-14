@@ -7,11 +7,12 @@ from sklearn.preprocessing import LabelEncoder
 from matplotlib.backends.backend_pdf import PdfPages
 
 from .decline_curve import modified_hyperbolic
+from .config import OUTPUT_DIR_PERFORMANCE, OUTPUT_DIR_DECLINE_CURVES
 
 
-def plot_model_performance(history, title):
+def plot_model_performance(history, title, output_dir=None):
     """Plot training and validation loss from a Keras history object."""
-    plt.figure(figsize=(12, 6))
+    fig = plt.figure(figsize=(12, 6))
     plt.plot(history.history['loss'], label='Training Loss')
     plt.plot(history.history['val_loss'], label='Validation Loss')
     plt.title(title)
@@ -19,10 +20,15 @@ def plot_model_performance(history, title):
     plt.ylabel('Loss')
     plt.legend()
     plt.grid(True)
-    plt.show()
+    save_dir = output_dir or OUTPUT_DIR_PERFORMANCE
+    os.makedirs(save_dir, exist_ok=True)
+    safe_title = title.replace(' ', '_').replace('/', '_')[:80]
+    plt.savefig(os.path.join(save_dir, f'{safe_title}_loss.png'),
+                dpi=150, bbox_inches='tight')
+    plt.close(fig)
 
 
-def plot_ml_performance(y_true, y_pred, title):
+def plot_ml_performance(y_true, y_pred, title, output_dir=None):
     """Scatter plot of true vs predicted values."""
     from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
     mse = mean_squared_error(y_true, y_pred)
@@ -31,19 +37,24 @@ def plot_ml_performance(y_true, y_pred, title):
 
     print(f"{title} - MSE: {mse}, MAE: {mae}, R2: {r2}")
 
-    plt.figure(figsize=(12, 6))
+    fig = plt.figure(figsize=(12, 6))
     plt.scatter(y_true, y_pred, alpha=0.5)
     plt.plot([y_true.min(), y_true.max()], [y_true.min(), y_true.max()], 'r--')
     plt.title(title)
     plt.xlabel('True Values')
     plt.ylabel('Predicted Values')
     plt.grid(True)
-    plt.show()
+    save_dir = output_dir or OUTPUT_DIR_PERFORMANCE
+    os.makedirs(save_dir, exist_ok=True)
+    safe_title = title.replace(' ', '_').replace('/', '_')[:80]
+    plt.savefig(os.path.join(save_dir, f'{safe_title}_scatter.png'),
+                dpi=150, bbox_inches='tight')
+    plt.close(fig)
 
 
-def plot_decline_curves(time, actual, predicted, title):
+def plot_decline_curves(time, actual, predicted, title, output_dir=None):
     """Plot actual vs predicted decline curves on log scale."""
-    plt.figure(figsize=(10, 6))
+    fig = plt.figure(figsize=(10, 6))
     plt.plot(time, actual, 'b-o', label='Actual', markersize=2)
     plt.plot(time, predicted, 'r--x', label='Predicted', markersize=2)
     plt.yscale('log')
@@ -53,7 +64,12 @@ def plot_decline_curves(time, actual, predicted, title):
     plt.ylabel('Production Monthly Volumes (bbls/month)')
     plt.legend()
     plt.grid(True, which='both', linestyle='--')
-    plt.show()
+    save_dir = output_dir or OUTPUT_DIR_DECLINE_CURVES
+    os.makedirs(save_dir, exist_ok=True)
+    safe_title = title.replace(' ', '_').replace('/', '_')[:80]
+    plt.savefig(os.path.join(save_dir, f'{safe_title}.png'),
+                dpi=150, bbox_inches='tight')
+    plt.close(fig)
 
 
 def plot_feature_vs_EUR(combo_test, feature, EUR_values, output_dir,
@@ -199,32 +215,42 @@ def plot_feature_vs_predicted(combo_test, feature, predicted_values, parameter_n
     return plot_filename
 
 
-def plot_learning_curve(model, X, y, cv=5):
+def plot_learning_curve(model, X, y, cv=5, output_dir=None, label=''):
     """Plot learning curve for a sklearn model."""
     from sklearn.model_selection import learning_curve
     train_sizes, train_scores, val_scores = learning_curve(
         model, X, y, cv=cv, scoring='neg_mean_squared_error', n_jobs=-1)
-    plt.figure()
+    fig = plt.figure()
     plt.plot(train_sizes, -train_scores.mean(axis=1), label="Training error")
     plt.plot(train_sizes, -val_scores.mean(axis=1), label="Validation error")
     plt.xlabel("Training set size")
     plt.ylabel("Mean Squared Error")
     plt.title("Learning Curve")
     plt.legend()
-    plt.show()
+    save_dir = output_dir or OUTPUT_DIR_PERFORMANCE
+    os.makedirs(save_dir, exist_ok=True)
+    safe_label = label.replace(' ', '_').replace('/', '_')[:80] or 'learning_curve'
+    plt.savefig(os.path.join(save_dir, f'{safe_label}.png'),
+                dpi=150, bbox_inches='tight')
+    plt.close(fig)
 
 
-def plot_residuals(model, X, y):
+def plot_residuals(model, X, y, output_dir=None, label=''):
     """Plot residuals for a sklearn model."""
     predictions = model.predict(X)
     residuals = y - predictions
-    plt.figure()
+    fig = plt.figure()
     plt.scatter(predictions, residuals)
     plt.axhline(y=0, color='r', linestyle='-')
     plt.xlabel("Predicted values")
     plt.ylabel("Residuals")
     plt.title("Residual Plot")
-    plt.show()
+    save_dir = output_dir or OUTPUT_DIR_PERFORMANCE
+    os.makedirs(save_dir, exist_ok=True)
+    safe_label = label.replace(' ', '_').replace('/', '_')[:80] or 'residuals'
+    plt.savefig(os.path.join(save_dir, f'{safe_label}.png'),
+                dpi=150, bbox_inches='tight')
+    plt.close(fig)
 
 
 def visualize_outlier_removal(df, numerical_columns, pdf_filename='outlier_removal_plots.pdf'):

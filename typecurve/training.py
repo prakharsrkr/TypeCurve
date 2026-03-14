@@ -10,14 +10,15 @@ from tqdm import tqdm
 
 from .models import build_model
 from .callbacks import PositivePredictionCallback, custom_xgboost_training
-from .config import TOTAL_EPOCHS, BATCH_SIZE
+from .config import TOTAL_EPOCHS, BATCH_SIZE, OUTPUT_DIR_TRAINING_LOSS
 
 _TF_MODEL_TYPES = frozenset(['neural_network', 'cnn', 'transformer', 'resnet'])
 
 
 def train_and_evaluate_model(combo_train, combo_val, combo_test,
                              numerical_columns, categorical_columns, y_headers,
-                             output_size, model_type, df, task_times, output_scaler):
+                             output_size, model_type, df, task_times, output_scaler,
+                             basin='', formation=''):
     """Train a single model for a basin/formation combination."""
     start_time = time.time()
     print(f"Starting {model_type} training", flush=True)
@@ -91,15 +92,19 @@ def train_and_evaluate_model(combo_train, combo_val, combo_test,
             if os.path.exists(checkpoint_path):
                 os.remove(checkpoint_path)
 
-        # Plot training history
+        # Plot training history and save to disk
         fig = plt.figure(figsize=(10, 6))
         plt.plot(history.history['loss'], label='Training Loss', color='blue')
         plt.plot(history.history['val_loss'], label='Validation Loss', color='red')
-        plt.title(f'Training and Validation Loss vs Epochs for {model_type}')
+        plt.title(f'Training and Validation Loss vs Epochs for {model_type}\n{basin}-{formation}')
         plt.xlabel('Epochs')
         plt.ylabel('Loss')
         plt.legend()
         plt.grid(True)
+        os.makedirs(OUTPUT_DIR_TRAINING_LOSS, exist_ok=True)
+        plt.savefig(os.path.join(OUTPUT_DIR_TRAINING_LOSS,
+                                 f'{basin}_{formation}_{model_type}_training_loss.png'),
+                    dpi=150, bbox_inches='tight')
         plt.close(fig)
 
         trained_model = model
@@ -150,7 +155,8 @@ def execute_training(specific_combinations, train_df, val_df, test_df,
             model = train_and_evaluate_model(
                 combo_train, combo_val, combo_test,
                 numerical_columns, categorical_columns, y_headers,
-                output_size, ml_config['model_type'], df, task_times, output_scaler)
+                output_size, ml_config['model_type'], df, task_times, output_scaler,
+                basin=basin, formation=formation)
             all_models[(basin, formation, ml_config['model_type'])] = model
 
     return all_models

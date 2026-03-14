@@ -10,6 +10,7 @@ from .data_preparation import (
     denormalize_data_output, denormalize_and_decode_inputs, filter_by_basin_and_formation
 )
 from .evaluation import predict_with_model
+from .config import OUTPUT_DIR_TYPE_CURVES
 
 
 def load_test_data(file_path, dtype_dict):
@@ -219,4 +220,8 @@ def plot_type_curves(basin, formation, config_str, original_df, results,
     ax.set_ylabel('Production Rate (bbl/month)')
     ax.legend()
     ax.grid(True, which='both', linestyle='--')
-    plt.show()
+    os.makedirs(OUTPUT_DIR_TYPE_CURVES, exist_ok=True)
+    plt.savefig(os.path.join(OUTPUT_DIR_TYPE_CURVES,
+                             f'{basin}_{formation}_{config_str}_{vary_column}.png'),
+                dpi=150, bbox_inches='tight')
+    plt.close(fig)
