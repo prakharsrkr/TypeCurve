@@ -68,6 +68,7 @@ def train_and_evaluate_model(combo_train, combo_val, combo_test,
                                       min_lr=1e-6, verbose=1),
                     ModelCheckpoint(checkpoint_path, monitor='val_loss',
                                     save_best_only=True, mode='min', verbose=1),
+                                    positive_pred_callback,
                 ],
                 verbose=0
             )
