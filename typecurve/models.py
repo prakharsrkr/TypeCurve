@@ -1,4 +1,5 @@
 import numpy as np
+import tensorflow as tf
 from sklearn.linear_model import Lasso
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, PolynomialFeatures
@@ -7,6 +8,10 @@ from sklearn.tree import DecisionTreeRegressor
 from sklearn.multioutput import MultiOutputRegressor
 from sklearn.compose import ColumnTransformer
 from xgboost import XGBRegressor
+
+# Resolve 'relu' string to actual function to prevent TensorFlow Grappler
+# optimizer errors ("Node model_N/activation/Relu has an empty op name").
+_RELU = tf.keras.activations.relu
 
 
 def _import_keras():
@@ -64,7 +69,7 @@ def _build_neural_network(numerical_columns, categorical_columns, df, output_siz
 
     x = merged
     for size in dense_layer_sizes:
-        x = K['Dense'](size, activation='relu')(x)
+        x = K['Dense'](size, activation=_RELU)(x)
         x = K['Dropout'](dropout_rate)(x)
 
     output = K['Dense'](output_size, activation='linear')(x)
@@ -84,7 +89,7 @@ def _build_cnn(numerical_columns, categorical_columns, df, output_size):
     reshaped = K['Reshape']((len(numerical_columns), 1))(numerical_input)
 
     # Run Conv1D on numerical features first, then pool to 2D
-    x = K['Conv1D'](filters=conv_filters, kernel_size=kernel_size, activation='relu', padding='same')(reshaped)
+    x = K['Conv1D'](filters=conv_filters, kernel_size=kernel_size, activation=_RELU, padding='same')(reshaped)
     x = K['MaxPooling1D'](pool_size=2)(x)
     x = K['Dropout'](dropout_rate)(x)
     x = K['GlobalAveragePooling1D']()(x)
@@ -102,7 +107,7 @@ def _build_cnn(numerical_columns, categorical_columns, df, output_size):
     else:
         categorical_inputs = []
 
-    x = K['Dense'](32, activation='relu')(x)
+    x = K['Dense'](32, activation=_RELU)(x)
     x = K['Dropout'](dropout_rate)(x)
 
     output = K['Dense'](output_size, activation='linear')(x)
@@ -132,14 +137,14 @@ def _build_resnet(numerical_columns, categorical_columns, df, output_size):
         categorical_inputs = []
         merged = numerical_input
 
-    x = K['Dense'](dense_layer_sizes[0], activation='relu')(merged)
+    x = K['Dense'](dense_layer_sizes[0], activation=_RELU)(merged)
     x = K['BatchNormalization']()(x)
     x = K['Dropout'](dropout_rate)(x)
 
     shortcut = K['Dense'](dense_layer_sizes[1])(x)
-    x = K['Dense'](dense_layer_sizes[1], activation='relu')(x)
+    x = K['Dense'](dense_layer_sizes[1], activation=_RELU)(x)
     x = K['Add']()([x, shortcut])
-    x = K['Activation']('relu')(x)
+    x = K['Activation'](_RELU)(x)
     x = K['BatchNormalization']()(x)
     x = K['Dropout'](dropout_rate)(x)
 
@@ -169,7 +174,7 @@ def _build_transformer(numerical_columns, categorical_columns, df, output_size):
         categorical_inputs = []
         merged = numerical_input
 
-    x = K['Dense'](32, activation='relu')(merged)
+    x = K['Dense'](32, activation=_RELU)(merged)
     x = K['BatchNormalization']()(x)
     x = K['Dropout'](dropout_rate)(x)
 

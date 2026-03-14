@@ -92,7 +92,7 @@ def train_and_evaluate_model(combo_train, combo_val, combo_test,
                 os.remove(checkpoint_path)
 
         # Plot training history
-        plt.figure(figsize=(10, 6))
+        fig = plt.figure(figsize=(10, 6))
         plt.plot(history.history['loss'], label='Training Loss', color='blue')
         plt.plot(history.history['val_loss'], label='Validation Loss', color='red')
         plt.title(f'Training and Validation Loss vs Epochs for {model_type}')
@@ -100,7 +100,7 @@ def train_and_evaluate_model(combo_train, combo_val, combo_test,
         plt.ylabel('Loss')
         plt.legend()
         plt.grid(True)
-        plt.show()
+        plt.close(fig)
 
         trained_model = model
     else:
