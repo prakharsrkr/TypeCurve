@@ -13,6 +13,10 @@ OUTPUT_DIR_TEST = os.path.join(BASE_DIR, 'output', 'FeaturevsPrediction_Test')
 OUTPUT_PDF_PATH = os.path.join(BASE_DIR, 'output', 'model_performance_predtuning.pdf')
 PICKLE_OUTPUT_PATH = os.path.join(BASE_DIR, 'output', 'outputs_NN_only.pkl')
 SHAP_PDF_PATH = os.path.join(BASE_DIR, 'output', 'shap_summary_plot.pdf')
+OUTPUT_DIR_TRAINING_LOSS = os.path.join(BASE_DIR, 'output', 'TrainingLoss')
+OUTPUT_DIR_TYPE_CURVES = os.path.join(BASE_DIR, 'output', 'TypeCurves')
+OUTPUT_DIR_PERFORMANCE = os.path.join(BASE_DIR, 'output', 'ModelPerformance')
+OUTPUT_DIR_DECLINE_CURVES = os.path.join(BASE_DIR, 'output', 'DeclineCurves')
 SHAP_SAMPLE_SIZE = 100
 
 # ── UWI Columns ─────────────────────────────────────────────────────────────
