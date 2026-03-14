@@ -138,13 +138,13 @@ def drop_columns(df, columns_to_drop, pattern_drops=None):
 
     # Drop _Method columns
     method_cols = [col for col in df.columns if '_Method' in col]
-    df.drop(columns=method_cols, axis=1, inplace=True)
+    df.drop(columns=method_cols, inplace=True)
 
     # Drop pattern-based columns
     if pattern_drops:
         for pattern in pattern_drops:
             matching = [col for col in df.columns if pattern in col]
-            df.drop(columns=matching, axis=1, inplace=True)
+            df.drop(columns=matching, inplace=True)
 
     df.reset_index(drop=True, inplace=True)
     return df

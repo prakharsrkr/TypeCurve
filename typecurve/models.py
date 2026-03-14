@@ -83,6 +83,12 @@ def _build_cnn(numerical_columns, categorical_columns, df, output_size):
     numerical_input = K['Input'](shape=(len(numerical_columns),), name='num_input')
     reshaped = K['Reshape']((len(numerical_columns), 1))(numerical_input)
 
+    # Run Conv1D on numerical features first, then pool to 2D
+    x = K['Conv1D'](filters=conv_filters, kernel_size=kernel_size, activation='relu', padding='same')(reshaped)
+    x = K['MaxPooling1D'](pool_size=2)(x)
+    x = K['Dropout'](dropout_rate)(x)
+    x = K['GlobalAveragePooling1D']()(x)
+
     if categorical_columns:
         categorical_inputs = [K['Input'](shape=(1,), name=f'cat_input_{i}')
                               for i, _ in enumerate(categorical_columns)]
@@ -91,15 +97,11 @@ def _build_cnn(numerical_columns, categorical_columns, df, output_size):
                                      name=f'emb_{col}')(cat_input)
                       for cat_input, col in zip(categorical_inputs, categorical_columns)]
         flat_embeddings = [K['Flatten']()(emb) for emb in embeddings]
-        merged = K['Concatenate']()([reshaped] + flat_embeddings)
+        # Both x and flat_embeddings are now 2D — safe to concatenate
+        x = K['Concatenate']()([x] + flat_embeddings)
     else:
         categorical_inputs = []
-        merged = reshaped
 
-    x = K['Conv1D'](filters=conv_filters, kernel_size=kernel_size, activation='relu', padding='same')(merged)
-    x = K['MaxPooling1D'](pool_size=2)(x)
-    x = K['Dropout'](dropout_rate)(x)
-    x = K['GlobalAveragePooling1D']()(x)
     x = K['Dense'](32, activation='relu')(x)
     x = K['Dropout'](dropout_rate)(x)
 

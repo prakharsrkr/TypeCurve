@@ -90,10 +90,14 @@ def generate_production_rates(df, headers, time_array, resource_type='Oil'):
         raise ValueError("resource_type must be 'Oil', 'Gas', or 'Water'.")
     pfx = prefix[resource_type]
 
+    qi_col = df.columns.get_loc(f'{pfx}InitialProd')
+    di_col = df.columns.get_loc(f'{pfx}DiCoefficient')
+    b_col = df.columns.get_loc(f'{pfx}BCoefficient')
+
     for idx in range(len(df)):
-        qi = df.iloc[idx][df.columns.get_loc(f'{pfx}InitialProd')]
-        di = df.iloc[idx][df.columns.get_loc(f'{pfx}DiCoefficient')]
-        b = df.iloc[idx][df.columns.get_loc(f'{pfx}BCoefficient')]
+        qi = df.iloc[idx, qi_col]
+        di = df.iloc[idx, di_col]
+        b = df.iloc[idx, b_col]
         IBU = 0
         MBU = 0
         Dlim = 7

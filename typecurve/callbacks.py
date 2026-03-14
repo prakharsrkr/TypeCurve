@@ -79,7 +79,7 @@ def PositivePredictionCallback(combo_train, numerical_columns, categorical_colum
             self._patience = patience
             self.wait = 0
             self.best_weights = None
-            self.best_loss = np.Inf
+            self.best_loss = np.inf
 
         def on_epoch_end(self, epoch, logs=None):
             predictions = self.model.predict(

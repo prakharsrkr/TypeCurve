@@ -11,6 +11,8 @@ from .models import build_model
 from .callbacks import PositivePredictionCallback, custom_xgboost_training
 from .config import TOTAL_EPOCHS, BATCH_SIZE
 
+_TF_MODEL_TYPES = frozenset(['neural_network', 'cnn', 'transformer', 'resnet'])
+
 
 def train_and_evaluate_model(combo_train, combo_val, combo_test,
                              numerical_columns, categorical_columns, y_headers,
@@ -19,7 +21,10 @@ def train_and_evaluate_model(combo_train, combo_val, combo_test,
     start_time = time.time()
     print(f"Starting {model_type} training")
 
-    if model_type in ['neural_network', 'cnn', 'transformer', 'resnet']:
+    if model_type in _TF_MODEL_TYPES:
+        # Import TensorFlow at point-of-use.  If it is missing or broken the
+        # ImportError propagates immediately — callers see a clear failure
+        # instead of silently receiving no model.
         import tensorflow as tf
         from tensorflow.keras.optimizers import Adam
         from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau, ModelCheckpoint
