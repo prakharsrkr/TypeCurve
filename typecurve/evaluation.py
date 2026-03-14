@@ -1,4 +1,5 @@
 import os
+import tempfile
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -201,7 +202,6 @@ def save_plots_to_pdf(plot_data, performance_data, output_path):
             ('Best', best_true[:min_len], best_pred[:min_len]),
             ('Worst', worst_true[:min_len], worst_pred[:min_len])
         ]:
-            plot_path = f"_temp_{label.lower()}_{i}.png"
             fig, ax = plt.subplots(figsize=(7, 5))
             ax.plot(time_arr, true_data, 'b-o', label='Actual', markersize=2)
             ax.plot(time_arr, pred_data, 'r--x', label='Predicted', markersize=2)
@@ -213,8 +213,11 @@ def save_plots_to_pdf(plot_data, performance_data, output_path):
             ax.legend()
             ax.grid(True, which='both', linestyle='--')
             plt.tight_layout()
+
+            fd, plot_path = tempfile.mkstemp(suffix='.png')
+            os.close(fd)
             plt.savefig(plot_path)
-            plt.close()
+            plt.close(fig)
 
             y_pos = pdf.get_y()
             pdf.image(plot_path, x=10, y=y_pos, w=90)
