@@ -1,4 +1,5 @@
 import os
+import sys
 import tempfile
 import time
 
@@ -19,24 +20,36 @@ def train_and_evaluate_model(combo_train, combo_val, combo_test,
                              output_size, model_type, df, task_times, output_scaler):
     """Train a single model for a basin/formation combination."""
     start_time = time.time()
-    print(f"Starting {model_type} training")
+    print(f"Starting {model_type} training", flush=True)
 
     if model_type in _TF_MODEL_TYPES:
         # Import TensorFlow at point-of-use.  If it is missing or broken the
         # ImportError propagates immediately — callers see a clear failure
         # instead of silently receiving no model.
+        print(f"  [diag] Importing TensorFlow...", flush=True)
         import tensorflow as tf
+        print(f"  [diag] TensorFlow {tf.__version__} imported OK", flush=True)
+        print(f"  [diag] CUDA_VISIBLE_DEVICES={os.environ.get('CUDA_VISIBLE_DEVICES', '<not set>')}", flush=True)
+        print(f"  [diag] Visible GPUs: {tf.config.list_physical_devices('GPU')}", flush=True)
+
         from tensorflow.keras.optimizers import Adam
         from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau, ModelCheckpoint
+        print(f"  [diag] Keras imports OK", flush=True)
 
+        print(f"  [diag] Building {model_type} model...", flush=True)
+        sys.stdout.flush()
         model = build_model(numerical_columns, categorical_columns, df,
                             output_size, model_type=model_type)
+        print(f"  [diag] Model built OK", flush=True)
 
+        print(f"  [diag] Compiling model...", flush=True)
+        sys.stdout.flush()
         model.compile(
             optimizer=Adam(learning_rate=0.001, clipvalue=1.0),
             loss=tf.keras.losses.MeanSquaredError(),
             metrics=[tf.keras.metrics.MeanSquaredError()]
         )
+        print(f"  [diag] Model compiled OK", flush=True)
 
         positive_pred_callback = PositivePredictionCallback(
             combo_train, numerical_columns, categorical_columns,
@@ -47,6 +60,7 @@ def train_and_evaluate_model(combo_train, combo_val, combo_test,
         checkpoint_fd, checkpoint_path = tempfile.mkstemp(suffix='.keras')
         os.close(checkpoint_fd)
 
+        print(f"  [diag] Starting model.fit()...", flush=True)
         try:
             history = model.fit(
                 x=([combo_train[numerical_columns].values] +
